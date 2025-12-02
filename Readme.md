@@ -223,7 +223,10 @@ Add your actual values:
 PORT=3001
 DATABASE_URL=postgresql://raguser:YourActualPassword@localhost:5432/ragapp
 DO_API_KEY=your_actual_digitalocean_api_key
+ALLOWED_ORIGINS=http://your_droplet_ip:3000
 ```
+
+**Important**: Replace `your_droplet_ip` with your actual droplet IP address. The `ALLOWED_ORIGINS` variable controls which frontend origins can access the API (CORS security).
 
 Save and exit: Ctrl+X, Y, Enter
 
@@ -239,6 +242,8 @@ pm2 start dist/server.js --name "rag-backend"
 # Frontend
 cd /var/www/rag-app/frontend
 npm install
+# IMPORTANT: Set API URL for production build (replace YOUR_DROPLET_IP with your actual IP)
+export VITE_API_URL=http://YOUR_DROPLET_IP:3001/api
 npm run build
 pm2 serve dist 3000 --name "rag-frontend" --spa
 
@@ -342,12 +347,25 @@ curl http://localhost:3001/api/health
 
 **If backend is running but frontend can't connect:**
 
+The most common issue is that `VITE_API_URL` wasn't set during the frontend build. Vite environment variables must be set at **build time**, not runtime.
+
+**Fix:**
+
 ```bash
 cd /var/www/rag-app/frontend
-echo "VITE_API_URL=http://your_droplet_ip:3001/api" > .env.production
+# Set API URL (replace YOUR_DROPLET_IP with your actual IP)
+export VITE_API_URL=http://YOUR_DROPLET_IP:3001/api
 npm run build
 pm2 restart rag-frontend
 ```
+
+**Check what API URL the frontend is using:**
+
+Open browser console (F12) and check the error messages - they will show the API URL being used. If it shows `http://localhost:3001/api`, the build didn't have `VITE_API_URL` set.
+
+**For GitHub Actions deployments:**
+
+The workflow automatically sets `VITE_API_URL` using the `DROPLET_IP` secret. Make sure your GitHub secret is set correctly.
 
 ### Database Connection Errors
 
@@ -409,6 +427,42 @@ ssh -i ~/.ssh/id_ed25519_github_actions root@your_droplet_ip
 
 **View GitHub Actions logs:**
 Go to your repo → Actions tab → Click on failed workflow → View error details
+
+### CORS Errors
+
+**If you see CORS errors in the browser console:**
+
+The backend uses a whitelist of allowed origins for security. Make sure `ALLOWED_ORIGINS` is set in your backend `.env` file:
+
+```bash
+cd /var/www/rag-app/backend
+nano .env
+```
+
+Add or update:
+
+```env
+ALLOWED_ORIGINS=http://your_droplet_ip:3000
+```
+
+For multiple origins (e.g., development and production), use comma-separated values:
+
+```env
+ALLOWED_ORIGINS=http://localhost:3000,http://your_droplet_ip:3000
+```
+
+After updating, restart the backend:
+
+```bash
+pm2 restart rag-backend
+```
+
+**Default allowed origins (development only):**
+
+- `http://localhost:3000`
+- `http://localhost:5173` (Vite dev server)
+- `http://127.0.0.1:3000`
+- `http://127.0.0.1:5173`
 
 ### Digital Ocean API Errors
 
@@ -481,7 +535,7 @@ For production, consider:
 
 - [ ] Implement authentication (JWT/OAuth)
 - [ ] Add rate limiting
-- [ ] Set up proper CORS policies
+- [x] Set up proper CORS policies (configured via `ALLOWED_ORIGINS` env var)
 - [ ] Use environment-specific configs
 
 **Monitoring:**
