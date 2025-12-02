@@ -28,7 +28,7 @@ jobs:
             cd backend
             npm install
             npm run build
-            pm2 restart rag-backend || pm2 start npm --name "rag-backend" -- start
+            pm2 restart rag-backend || pm2 start dist/server.js --name "rag-backend"
 
             # Frontend
             cd ../frontend
