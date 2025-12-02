@@ -24,6 +24,14 @@ function App() {
       setDocuments(response.data);
     } catch (error) {
       console.error('Error fetching documents:', error);
+      const errorMsg = axios.isAxiosError(error) 
+        ? (error.response?.data?.error || error.message || 'Unknown error')
+        : error instanceof Error 
+        ? error.message 
+        : 'Unknown error';
+      console.error('API URL:', API_URL);
+      console.error('Full error:', errorMsg);
+      alert(`Failed to fetch documents: ${errorMsg}\n\nAPI URL: ${API_URL}`);
     }
   };
 
@@ -34,6 +42,14 @@ function App() {
         setDocuments(response.data);
       } catch (error) {
         console.error('Error fetching documents:', error);
+        const errorMsg = axios.isAxiosError(error) 
+          ? (error.response?.data?.error || error.message || 'Unknown error')
+          : error instanceof Error 
+          ? error.message 
+          : 'Unknown error';
+        console.error('API URL:', API_URL);
+        console.error('Full error:', errorMsg);
+        // Don't show alert on initial load, just log
       }
     })();
   }, []);
@@ -48,7 +64,13 @@ function App() {
       await fetchDocuments();
     } catch (error) {
       console.error('Error adding document:', error);
-      alert('Failed to add document');
+      const errorMsg = axios.isAxiosError(error) 
+        ? (error.response?.data?.error || error.message || 'Unknown error')
+        : error instanceof Error 
+        ? error.message 
+        : 'Unknown error';
+      console.error('API URL:', API_URL);
+      alert(`Failed to add document: ${errorMsg}\n\nAPI URL: ${API_URL}`);
     }
     setLoading(false);
   };
@@ -63,7 +85,13 @@ function App() {
       setAnswer(response.data.answer);
     } catch (error) {
       console.error('Error querying:', error);
-      alert('Failed to get answer');
+      const errorMsg = axios.isAxiosError(error) 
+        ? (error.response?.data?.error || error.message || 'Unknown error')
+        : error instanceof Error 
+        ? error.message 
+        : 'Unknown error';
+      console.error('API URL:', API_URL);
+      alert(`Failed to get answer: ${errorMsg}\n\nAPI URL: ${API_URL}`);
     }
     setLoading(false);
   };

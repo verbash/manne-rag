@@ -8,7 +8,14 @@ dotenv.config();
 const app = express();
 const DO_API_URL = "https://api.digitalocean.com/v2/ai";
 
-app.use(cors());
+// CORS configuration - allow all origins in production
+app.use(
+  cors({
+    origin: "*", // Allow all origins for now (can be restricted later)
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(express.json());
 
 initDB().catch(console.error);
