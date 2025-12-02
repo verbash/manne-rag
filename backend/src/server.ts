@@ -1,28 +1,49 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import OpenAI from "openai";
 import { pool, initDB } from "./db";
 
 dotenv.config();
 
 const app = express();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const DO_API_URL = "https://api.digitalocean.com/v2/ai";
 
 app.use(cors());
 app.use(express.json());
 
-// Initialize database
 initDB().catch(console.error);
+
+// Helper function to call DO Gradient AI API
+async function callDOAPI(endpoint: string, body: any) {
+  const response = await fetch(`${DO_API_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.DO_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`DO API Error: ${response.status} - ${error}`);
+  }
+
+  return response.json();
+}
 
 // Add document endpoint
 app.post("/api/documents", async (req, res) => {
   try {
     const { content, metadata } = req.body;
 
-    // Generate embedding
-    const embeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-3-small",
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ error: "Content is required" });
+    }
+
+    // Generate embedding with DO Gradient AI
+    const embeddingResponse = await callDOAPI("/embeddings", {
+      model: "multi-qa-mpnet-base-dot-v1",
       input: content,
     });
 
@@ -36,7 +57,7 @@ app.post("/api/documents", async (req, res) => {
 
     res.json({ id: result.rows[0].id, message: "Document added successfully" });
   } catch (error) {
-    console.error(error);
+    console.error("Error adding document:", error);
     res.status(500).json({ error: "Failed to add document" });
   }
 });
@@ -46,9 +67,13 @@ app.post("/api/query", async (req, res) => {
   try {
     const { question } = req.body;
 
+    if (!question || question.trim().length === 0) {
+      return res.status(400).json({ error: "Question is required" });
+    }
+
     // Generate query embedding
-    const embeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-3-small",
+    const embeddingResponse = await callDOAPI("/embeddings", {
+      model: "multi-qa-mpnet-base-dot-v1",
       input: question,
     });
 
@@ -63,12 +88,20 @@ app.post("/api/query", async (req, res) => {
       [JSON.stringify(queryEmbedding)]
     );
 
+    if (similarDocs.rows.length === 0) {
+      return res.json({
+        answer:
+          "I don't have any documents in my knowledge base to answer this question.",
+        sources: [],
+      });
+    }
+
     // Build context from similar documents
     const context = similarDocs.rows.map((row) => row.content).join("\n\n");
 
-    // Generate answer using GPT
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    // Generate answer using Llama 3.1 8B
+    const completion = await callDOAPI("/chat/completions", {
+      model: "llama3-8b-instruct",
       messages: [
         {
           role: "system",
@@ -80,6 +113,7 @@ app.post("/api/query", async (req, res) => {
           content: `Context:\n${context}\n\nQuestion: ${question}`,
         },
       ],
+      max_tokens: 500,
     });
 
     res.json({
@@ -87,7 +121,7 @@ app.post("/api/query", async (req, res) => {
       sources: similarDocs.rows,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error processing query:", error);
     res.status(500).json({ error: "Failed to process query" });
   }
 });
@@ -100,11 +134,18 @@ app.get("/api/documents", async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
+    console.error("Error fetching documents:", error);
     res.status(500).json({ error: "Failed to fetch documents" });
   }
+});
+
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Using Digital Ocean Gradient AI`);
 });
