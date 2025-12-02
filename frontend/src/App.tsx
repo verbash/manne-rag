@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 interface Document {
   id: number;
   content: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 
@@ -18,10 +18,6 @@ function App() {
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
-
   const fetchDocuments = async () => {
     try {
       const response = await axios.get(`${API_URL}/documents`);
@@ -30,6 +26,17 @@ function App() {
       console.error('Error fetching documents:', error);
     }
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await axios.get(`${API_URL}/documents`);
+        setDocuments(response.data);
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+      }
+    })();
+  }, []);
 
   const addDocument = async () => {
     if (!newDoc.trim()) return;
@@ -63,7 +70,7 @@ function App() {
 
   return (
     <div className="App">
-      <h1>RAG Application</h1>
+      <h1>MannE Document RAG</h1>
       <p className="subtitle">Powered by Digital Ocean Gradient AI</p>
 
       <div className="section">
