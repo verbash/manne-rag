@@ -237,7 +237,7 @@ Save and exit: Ctrl+X, Y, Enter
 cd /var/www/rag-app/backend
 npm install
 npm run build
-pm2 start dist/server.js --name "rag-backend"
+pm2 start ecosystem.config.js
 
 # Frontend
 cd /var/www/rag-app/frontend
