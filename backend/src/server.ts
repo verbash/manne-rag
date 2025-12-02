@@ -12,7 +12,14 @@ const DO_API_URL = "https://api.digitalocean.com/v2/ai";
 app.use(cors());
 app.use(express.json());
 
-initDB().catch(console.error);
+// Initialize database with better error handling
+initDB().catch((error) => {
+  console.error("Failed to initialize database:", error);
+  console.error(
+    "Please check your DATABASE_URL in the .env file. Format: postgresql://user:password@host:port/database"
+  );
+  process.exit(1);
+});
 
 // Helper function to call DO Gradient AI API
 async function callDOAPI(endpoint: string, body: any) {
@@ -142,11 +149,27 @@ app.get("/api/documents", async (req, res) => {
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    cors: "enabled",
+    origin: req.headers.origin || "none",
+  });
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Root endpoint for testing
+app.get("/", (req, res) => {
+  res.json({
+    message: "RAG API is running",
+    endpoints: ["/api/health", "/api/documents", "/api/query"],
+  });
+});
+
+const PORT = Number(process.env.PORT) || 3001;
+const HOST = process.env.HOST || "0.0.0.0"; // Listen on all interfaces
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
   console.log(`Using Digital Ocean Gradient AI`);
+  console.log(`CORS: All origins allowed`);
 });
